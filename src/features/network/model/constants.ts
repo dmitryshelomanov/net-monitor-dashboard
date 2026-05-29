@@ -1,3 +1,4 @@
+import { assetUrl } from "../../../lib/assetUrl";
 import type { EndpointConfig } from "./types";
 
 export const CONNECTIVITY_PROBES: string[] = [
@@ -73,7 +74,10 @@ export const PROBE_TIMEOUTS = {
 } as const;
 
 export const SPEED_TEST_CONFIG = {
-  localDownloadPaths: ["/speed-test/1mb.bin", "/speed-test/10mb.bin"],
+  localDownloadPaths: [
+    assetUrl("speed-test/1mb.bin"),
+    assetUrl("speed-test/10mb.bin"),
+  ],
   downloadSampleBytes: 512_000,
   timeoutMs: 12_000,
   minBytesForValidSample: 100_000,
