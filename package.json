@@ -1,0 +1,44 @@
+{
+  "name": "net-monitor-dashboard",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "predeploy": "npm run build -- --base=/$npm_package_name/",
+    "deploy": "gh-pages -d dist",
+    "lint": "eslint .",
+    "format": "prettier . --write",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@cloudflare/speedtest": "^1.9.1",
+    "@heroui/react": "^3.1.0",
+    "@heroui/theme": "^2.4.26",
+    "framer-motion": "^12.40.0",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6",
+    "recharts": "^3.8.1",
+    "sass": "^1.99.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "9.39.1",
+    "@types/node": "^24.12.3",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "4.4.1",
+    "autoprefixer": "^10.5.0",
+    "eslint": "9.39.1",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.2",
+    "gh-pages": "^6.3.0",
+    "globals": "^17.6.0",
+    "postcss": "^8.5.15",
+    "prettier": "^3.8.3",
+    "tailwindcss": "^4.3.0",
+    "typescript": "~6.0.2",
+    "typescript-eslint": "^8.59.2",
+    "vite": "6.4.1"
+  }
+}
