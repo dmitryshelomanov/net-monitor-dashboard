@@ -9,16 +9,10 @@ import {
 } from "@heroui/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNetworkMonitor } from "../hooks/useNetworkMonitor";
-import {
-  DEGRADATION_ALERT,
-  MONITORING_RANGES,
-  RANGE_WINDOWS_MS,
-} from "../model/constants";
-import type { MonitoringRange } from "../model/types";
+import { DEGRADATION_ALERT } from "../model/constants";
 import {
   collectLatencySamples,
   computeReliabilitySummary,
-  filterByRange,
   summarizeEndpointStats,
   summarizeRangeMetrics,
 } from "../model/utils";
@@ -52,23 +46,14 @@ import {
 
 export function NetworkDashboard() {
   const { state, hasData } = useNetworkMonitor();
-  const [selectedRange, setSelectedRange] = useState<MonitoringRange>("1h");
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const toastTimerRef = useRef<number | null>(null);
   const lastAlertAtRef = useRef(0);
 
   const anchorTs = state.lastUpdatedAt ?? state.startedAt;
-  const rangeStartTs = anchorTs - RANGE_WINDOWS_MS[selectedRange];
-  const rangeStartedAt = Math.max(state.startedAt, rangeStartTs);
-  const filteredConnectivityHistory = useMemo(() => {
-    return filterByRange(state.connectivityHistory, selectedRange, anchorTs);
-  }, [anchorTs, selectedRange, state.connectivityHistory]);
-  const filteredSpeedHistory = useMemo(() => {
-    return filterByRange(state.speedHistory, selectedRange, anchorTs);
-  }, [anchorTs, selectedRange, state.speedHistory]);
-  const filteredEndpointLatencyHistory = useMemo(() => {
-    return filterByRange(state.endpointLatencyHistory, selectedRange, anchorTs);
-  }, [anchorTs, selectedRange, state.endpointLatencyHistory]);
+  const connectivityHistory = state.connectivityHistory;
+  const speedHistory = state.speedHistory;
+  const endpointLatencyHistory = state.endpointLatencyHistory;
 
   const endpointStats = state.endpointStats;
   const endpointSummary = useMemo(
@@ -76,23 +61,19 @@ export function NetworkDashboard() {
     [endpointStats],
   );
   const periodSummary = useMemo(() => {
-    return summarizeRangeMetrics(
-      filteredSpeedHistory,
-      filteredEndpointLatencyHistory,
-    );
-  }, [filteredEndpointLatencyHistory, filteredSpeedHistory]);
+    return summarizeRangeMetrics(speedHistory, endpointLatencyHistory);
+  }, [endpointLatencyHistory, speedHistory]);
   const reliabilitySummary = useMemo(
-    () => computeReliabilitySummary(filteredConnectivityHistory),
-    [filteredConnectivityHistory],
+    () => computeReliabilitySummary(connectivityHistory),
+    [connectivityHistory],
   );
   const latencyDistribution = useMemo(
-    () => collectLatencySamples(filteredEndpointLatencyHistory),
-    [filteredEndpointLatencyHistory],
+    () => collectLatencySamples(endpointLatencyHistory),
+    [endpointLatencyHistory],
   );
 
   const incidents = useMemo(() => {
     return state.degradationEvents
-      .filter((event) => (event.endedAt ?? anchorTs) >= rangeStartTs)
       .map((event) => {
         const endedAt = event.endedAt ?? anchorTs;
         return {
@@ -101,7 +82,7 @@ export function NetworkDashboard() {
         };
       })
       .sort((a, b) => b.startedAt - a.startedAt);
-  }, [anchorTs, rangeStartTs, state.degradationEvents]);
+  }, [anchorTs, state.degradationEvents]);
 
   useEffect(() => {
     const activeEvent = state.degradationEvents.findLast(
@@ -144,7 +125,7 @@ export function NetworkDashboard() {
   }, []);
 
   const averageDownloadMbps = useMemo(() => {
-    const values = filteredSpeedHistory
+    const values = speedHistory
       .map((item) => item.downloadMbps)
       .filter(
         (value): value is number =>
@@ -159,24 +140,20 @@ export function NetworkDashboard() {
     }
 
     return values.reduce((sum, value) => sum + value, 0) / values.length;
-  }, [filteredSpeedHistory]);
-  const lastSpeedSample = filteredSpeedHistory.at(-1) ?? null;
+  }, [speedHistory]);
+  const lastSpeedSample = speedHistory.at(-1) ?? null;
 
   const connectionChartData = useMemo(() => {
-    return mapConnectionChartData(filteredConnectivityHistory);
-  }, [filteredConnectivityHistory]);
+    return mapConnectionChartData(connectivityHistory);
+  }, [connectivityHistory]);
 
   const speedChartData = useMemo(() => {
-    return mapSpeedChartData(filteredSpeedHistory, rangeStartedAt);
-  }, [filteredSpeedHistory, rangeStartedAt]);
+    return mapSpeedChartData(speedHistory);
+  }, [speedHistory]);
 
   const endpointHistoryData = useMemo(() => {
-    return mapEndpointHistoryData(
-      filteredEndpointLatencyHistory,
-      endpointStats,
-      rangeStartedAt,
-    );
-  }, [endpointStats, filteredEndpointLatencyHistory, rangeStartedAt]);
+    return mapEndpointHistoryData(endpointLatencyHistory, endpointStats);
+  }, [endpointStats, endpointLatencyHistory]);
 
   const endpointSeries = useMemo(() => {
     return buildEndpointSeries(endpointStats, ENDPOINT_LINE_COLORS);
@@ -191,23 +168,23 @@ export function NetworkDashboard() {
   const exportPayload = useMemo(() => {
     return {
       generatedAt: new Date(anchorTs).toISOString(),
-      range: selectedRange,
-      connectivityHistory: filteredConnectivityHistory,
-      speedHistory: filteredSpeedHistory,
-      endpointLatencyHistory: filteredEndpointLatencyHistory,
+      sessionStartedAt: new Date(state.startedAt).toISOString(),
+      connectivityHistory: state.connectivityHistory,
+      speedHistory: state.speedHistory,
+      endpointLatencyHistory: state.endpointLatencyHistory,
       incidents,
       periodSummary,
       reliabilitySummary,
     };
   }, [
     anchorTs,
-    filteredConnectivityHistory,
-    filteredEndpointLatencyHistory,
-    filteredSpeedHistory,
     incidents,
     periodSummary,
     reliabilitySummary,
-    selectedRange,
+    state.connectivityHistory,
+    state.startedAt,
+    state.endpointLatencyHistory,
+    state.speedHistory,
   ]);
 
   function downloadFile(filename: string, content: string, mimeType: string) {
@@ -222,7 +199,7 @@ export function NetworkDashboard() {
 
   function exportAsJson() {
     downloadFile(
-      `network-report-${selectedRange}.json`,
+      "network-report.json",
       JSON.stringify(exportPayload, null, 2),
       "application/json",
     );
@@ -231,15 +208,15 @@ export function NetworkDashboard() {
   function exportAsCsv() {
     const rows = [
       ["timestamp", "connectionStatus", "probeLatencyMs", "downloadMbps"],
-      ...filteredConnectivityHistory.map((item, index) => [
+      ...connectivityHistory.map((item, index) => [
         new Date(item.timestamp).toISOString(),
         item.status,
         item.probeLatencyMs ?? "",
-        filteredSpeedHistory[index]?.downloadMbps ?? "",
+        speedHistory[index]?.downloadMbps ?? "",
       ]),
     ];
     const csv = rows.map((row) => row.join(",")).join("\n");
-    downloadFile(`network-report-${selectedRange}.csv`, csv, "text/csv");
+    downloadFile("network-report.csv", csv, "text/csv");
   }
 
   return (
@@ -252,22 +229,6 @@ export function NetworkDashboard() {
           </p>
         </div>
         <div className={styles.controls}>
-          <div className={styles.rangeButtons}>
-            {MONITORING_RANGES.map((item) => (
-              <button
-                key={item.key}
-                type="button"
-                className={
-                  selectedRange === item.key
-                    ? `${styles.rangeButton} ${styles.rangeButtonActive}`
-                    : styles.rangeButton
-                }
-                onClick={() => setSelectedRange(item.key)}
-              >
-                {item.label}
-              </button>
-            ))}
-          </div>
           <div className={styles.exportButtons}>
             <button
               type="button"
@@ -336,13 +297,19 @@ export function NetworkDashboard() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <TimelineChart
-              data={speedChartData}
-              lines={speedLines}
-              yLabel="Мбит/с"
-              yDomain={[0, "auto"]}
-              leftBands={speedChartBands}
-            />
+            {speedChartData.length > 0 ? (
+              <TimelineChart
+                data={speedChartData}
+                lines={speedLines}
+                yLabel="Мбит/с"
+                yDomain={[0, "auto"]}
+                leftBands={speedChartBands}
+              />
+            ) : (
+              <p className={styles.loadingHint}>
+                Идет сбор данных для графика...
+              </p>
+            )}
           </CardContent>
         </Card>
 
@@ -354,17 +321,23 @@ export function NetworkDashboard() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <EndpointHealthChart
-              data={endpointHistoryData}
-              series={endpointSeries}
-            />
+            {endpointHistoryData.length > 0 ? (
+              <EndpointHealthChart
+                data={endpointHistoryData}
+                series={endpointSeries}
+              />
+            ) : (
+              <p className={styles.loadingHint}>
+                Идет сбор данных для графика...
+              </p>
+            )}
           </CardContent>
         </Card>
       </div>
 
       <Card className={styles.summaryCard}>
         <CardHeader>
-          <CardTitle>Текущая сводка ({selectedRange})</CardTitle>
+          <CardTitle>Текущая сводка</CardTitle>
           <CardDescription>
             Ключевые показатели состояния сети в одном месте.
           </CardDescription>

@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import {
   CartesianGrid,
   Legend,
@@ -60,9 +61,13 @@ export function TimelineChart({
   rightAxis,
   leftBands,
 }: TimelineChartProps) {
-  const safeData = data
-    .filter((item) => Number.isFinite(item.ts))
-    .sort((a, b) => Number(a.ts) - Number(b.ts));
+  const safeData = useMemo(
+    () =>
+      data
+        .filter((item) => Number.isFinite(item.ts))
+        .sort((a, b) => Number(a.ts) - Number(b.ts)),
+    [data],
+  );
 
   const lineFormatters = Object.fromEntries(
     lines.map((line) => [line.key, line.valueFormatter]),

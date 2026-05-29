@@ -29,18 +29,9 @@ export function mapConnectionChartData(
   }));
 }
 
-export function mapSpeedChartData(
-  speedHistory: SpeedSample[],
-  startedAt: number,
-): ChartPoint[] {
+export function mapSpeedChartData(speedHistory: SpeedSample[]): ChartPoint[] {
   if (speedHistory.length === 0) {
-    return [
-      {
-        ts: startedAt,
-        download: 0,
-        [`download${NA_SUFFIX}`]: true,
-      },
-    ];
+    return [];
   }
 
   const normalized = speedHistory.map((item) => {
@@ -66,24 +57,9 @@ export function mapSpeedChartData(
 export function mapEndpointHistoryData(
   points: EndpointLatencyHistoryPoint[],
   endpointStats: EndpointStats[],
-  startedAt: number,
 ): ChartPoint[] {
   if (points.length === 0) {
-    const fallbackPoint: Record<string, number | boolean> = {};
-    for (const item of endpointStats) {
-      fallbackPoint[item.endpointId] = 0;
-      fallbackPoint[`${item.endpointId}${NA_SUFFIX}`] = true;
-    }
-    fallbackPoint.avgLatency = 0;
-    fallbackPoint[`avgLatency${NA_SUFFIX}`] = true;
-    fallbackPoint.avgLatencySmooth = 0;
-    fallbackPoint[`avgLatencySmooth${NA_SUFFIX}`] = true;
-    return [
-      {
-        ts: startedAt,
-        ...fallbackPoint,
-      },
-    ];
+    return [];
   }
 
   const rawRows: Array<ChartPoint & { avgLatency: number | null }> = points.map(

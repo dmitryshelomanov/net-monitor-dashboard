@@ -279,9 +279,7 @@ async function measureDownloadSample(): Promise<DownloadSample | null> {
 export async function probeSpeed(): Promise<SpeedProbeResult> {
   const sample = await measureDownloadSample();
   const downloadMbps = sample?.downloadMbps ?? null;
-  const source: SpeedMeasurementSource = sample
-    ? sample.source
-    : "unavailable";
+  const source: SpeedMeasurementSource = sample ? sample.source : "unavailable";
 
   return {
     downloadMbps,

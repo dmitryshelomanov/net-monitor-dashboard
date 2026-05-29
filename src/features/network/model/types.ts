@@ -1,5 +1,4 @@
 export type ConnectionStatus = "online" | "degraded" | "offline";
-export type MonitoringRange = "5m" | "1h" | "24h" | "7d";
 
 export interface ConnectivitySample {
   timestamp: number;
@@ -81,9 +80,7 @@ export interface SpeedProbeResult {
   usedCompressedTransfer: boolean | null;
 }
 
-export type SpeedMeasurementSource =
-  | "file_download"
-  | "unavailable";
+export type SpeedMeasurementSource = "file_download" | "unavailable";
 
 export interface NetworkMonitorState {
   startedAt: number;

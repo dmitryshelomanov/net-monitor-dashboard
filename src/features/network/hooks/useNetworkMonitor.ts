@@ -1,9 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  HISTORY_LIMIT,
-  LATENCY_ENDPOINTS,
-  PROBE_INTERVALS,
-} from "../model/constants";
+import { LATENCY_ENDPOINTS, PROBE_INTERVALS } from "../model/constants";
 import type {
   ConnectionStatus,
   EndpointStats,
@@ -11,7 +7,6 @@ import type {
   SpeedProbeResult,
 } from "../model/types";
 import {
-  appendWithLimit,
   calculateEndpointStats,
   computeQualityScore,
   createEmptyEndpointStats,
@@ -109,15 +104,14 @@ function applyConnectionProbeResult(
     ...current,
     connectionStatus: status,
     lastUpdatedAt: timestamp,
-    connectivityHistory: appendWithLimit(
-      current.connectivityHistory,
+    connectivityHistory: [
+      ...current.connectivityHistory,
       {
         timestamp,
         status,
         probeLatencyMs: latencyMs,
       },
-      HISTORY_LIMIT,
-    ),
+    ],
     degradationEvents: nextDegradationEvents,
     ...quality,
   };
@@ -128,8 +122,8 @@ function applySpeedProbeResult(
   speed: SpeedProbeResult,
   timestamp: number,
 ): NetworkMonitorState {
-  const nextSpeedHistory = appendWithLimit(
-    current.speedHistory,
+  const nextSpeedHistory = [
+    ...current.speedHistory,
     {
       timestamp,
       downloadMbps: speed.downloadMbps,
@@ -140,8 +134,7 @@ function applySpeedProbeResult(
       isApproximate: speed.isApproximate,
       usedCompressedTransfer: speed.usedCompressedTransfer,
     },
-    HISTORY_LIMIT,
-  );
+  ];
 
   const quality = createQualityStatus(
     current.connectionStatus,
@@ -202,14 +195,13 @@ function applyLatencyProbeResult(
   return {
     ...current,
     endpointStats: nextEndpointStats,
-    endpointLatencyHistory: appendWithLimit(
-      current.endpointLatencyHistory,
+    endpointLatencyHistory: [
+      ...current.endpointLatencyHistory,
       {
         timestamp,
         values: historyPointValues,
       },
-      HISTORY_LIMIT,
-    ),
+    ],
     connectionStatus: nextConnectionStatus,
     degradationEvents: nextDegradationEvents,
     lastUpdatedAt: timestamp,

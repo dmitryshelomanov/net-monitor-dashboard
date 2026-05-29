@@ -11,21 +11,6 @@ import type {
   ReliabilitySummary,
   SpeedSample,
 } from "./types";
-import { RANGE_WINDOWS_MS } from "./constants";
-
-export function appendWithLimit<T>(
-  items: T[] | undefined | null,
-  nextItem: T,
-  max: number,
-): T[] {
-  const safeItems = Array.isArray(items) ? items : [];
-  const updated = [...safeItems, nextItem];
-  if (updated.length <= max) {
-    return updated;
-  }
-  return updated.slice(updated.length - max);
-}
-
 export function toRounded(value: number | null, digits = 2): number | null {
   if (value === null || Number.isNaN(value)) {
     return null;
@@ -226,15 +211,6 @@ export function summarizeNumericSeries(values: number[]): PeriodMetricSummary {
     max: toRounded(max, 1),
     p95: toRounded(p95, 1),
   };
-}
-
-export function filterByRange<T extends { timestamp: number }>(
-  items: T[],
-  range: keyof typeof RANGE_WINDOWS_MS,
-  now = Date.now(),
-): T[] {
-  const cutoff = now - RANGE_WINDOWS_MS[range];
-  return items.filter((item) => item.timestamp >= cutoff);
 }
 
 export function collectLatencySamples(

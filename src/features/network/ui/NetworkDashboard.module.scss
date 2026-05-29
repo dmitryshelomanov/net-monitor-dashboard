@@ -25,7 +25,6 @@
   justify-items: end;
 }
 
-.rangeButtons,
 .exportButtons {
   display: flex;
   gap: 8px;
@@ -33,7 +32,6 @@
   justify-content: flex-end;
 }
 
-.rangeButton,
 .actionButton {
   border: 1px solid #334155;
   background: #0f172a;
@@ -43,15 +41,9 @@
   cursor: pointer;
 }
 
-.rangeButton:hover,
 .actionButton:hover {
   border-color: #38bdf8;
   color: #e2e8f0;
-}
-
-.rangeButtonActive {
-  border-color: #22d3ee;
-  color: #22d3ee;
 }
 
 .toast {
@@ -141,7 +133,6 @@
     justify-items: start;
   }
 
-  .rangeButtons,
   .exportButtons {
     justify-content: flex-start;
   }
