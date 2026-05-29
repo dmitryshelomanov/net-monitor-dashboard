@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://dmitryshelomanov.github.io/net-monitor-dashboard/sitemap.xml
