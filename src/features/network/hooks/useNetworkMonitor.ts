@@ -8,6 +8,7 @@ import type {
   ConnectionStatus,
   EndpointStats,
   NetworkMonitorState,
+  SpeedProbeResult,
 } from "../model/types";
 import {
   appendWithLimit,
@@ -124,7 +125,7 @@ function applyConnectionProbeResult(
 
 function applySpeedProbeResult(
   current: NetworkMonitorState,
-  speed: { downloadMbps: number | null; uploadMbps: number | null },
+  speed: SpeedProbeResult,
   timestamp: number,
 ): NetworkMonitorState {
   const nextSpeedHistory = appendWithLimit(
@@ -133,6 +134,11 @@ function applySpeedProbeResult(
       timestamp,
       downloadMbps: speed.downloadMbps,
       uploadMbps: speed.uploadMbps,
+      measurementSource: speed.measurementSource,
+      sampleDurationMs: speed.sampleDurationMs,
+      sampleBytes: speed.sampleBytes,
+      isApproximate: speed.isApproximate,
+      usedCompressedTransfer: speed.usedCompressedTransfer,
     },
     HISTORY_LIMIT,
   );

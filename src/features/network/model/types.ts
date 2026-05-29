@@ -11,6 +11,11 @@ export interface SpeedSample {
   timestamp: number;
   downloadMbps: number | null;
   uploadMbps: number | null;
+  measurementSource?: SpeedMeasurementSource;
+  sampleDurationMs?: number | null;
+  sampleBytes?: number | null;
+  isApproximate?: boolean;
+  usedCompressedTransfer?: boolean | null;
 }
 
 export interface EndpointConfig {
@@ -69,7 +74,18 @@ export interface ConnectionProbeResult {
 export interface SpeedProbeResult {
   downloadMbps: number | null;
   uploadMbps: number | null;
+  measurementSource: SpeedMeasurementSource;
+  sampleDurationMs: number | null;
+  sampleBytes: number | null;
+  isApproximate: boolean;
+  usedCompressedTransfer: boolean | null;
 }
+
+export type SpeedMeasurementSource =
+  | "resource_timing"
+  | "stream_fallback"
+  | "navigator_estimate"
+  | "unavailable";
 
 export interface NetworkMonitorState {
   startedAt: number;

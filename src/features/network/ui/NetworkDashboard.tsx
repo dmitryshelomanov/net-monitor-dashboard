@@ -160,6 +160,7 @@ export function NetworkDashboard() {
 
     return values.reduce((sum, value) => sum + value, 0) / values.length;
   }, [filteredSpeedHistory]);
+  const lastSpeedSample = filteredSpeedHistory.at(-1) ?? null;
 
   const connectionChartData = useMemo(() => {
     return mapConnectionChartData(filteredConnectivityHistory);
@@ -331,8 +332,7 @@ export function NetworkDashboard() {
           <CardHeader>
             <CardTitle>Speed timeline</CardTitle>
             <CardDescription>
-              Download по локальным тестовым файлам (`public/speed-test`),
-              Мбит/с
+              HTTP download throughput по тестовым URL, Мбит/с.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -393,8 +393,30 @@ export function NetworkDashboard() {
                 </tr>
                 <tr>
                   <td>Средняя скорость Download</td>
+                  <td>{formatMetricNumber(averageDownloadMbps, "Мбит/с")}</td>
+                </tr>
+                <tr>
+                  <td>Источник замера скорости</td>
                   <td>
-                    {formatMetricNumber(averageDownloadMbps, "Мбит/с")}
+                    {lastSpeedSample?.measurementSource === "resource_timing" &&
+                      "Resource Timing"}
+                    {lastSpeedSample?.measurementSource === "stream_fallback" &&
+                      "Stream fallback"}
+                    {lastSpeedSample?.measurementSource ===
+                      "navigator_estimate" && "Navigator estimate"}
+                    {lastSpeedSample?.measurementSource === "unavailable" &&
+                      "n/a"}
+                    {!lastSpeedSample?.measurementSource && "n/a"}
+                  </td>
+                </tr>
+                <tr>
+                  <td>Последний сэмпл скорости</td>
+                  <td>
+                    {lastSpeedSample?.sampleBytes &&
+                    lastSpeedSample?.sampleDurationMs
+                      ? `${Math.round(lastSpeedSample.sampleBytes / 1024)} KB за ${lastSpeedSample.sampleDurationMs.toFixed(1)} ms`
+                      : "n/a"}
+                    {lastSpeedSample?.isApproximate ? " (approximate)" : ""}
                   </td>
                 </tr>
                 <tr>
@@ -475,10 +497,18 @@ export function NetworkDashboard() {
               <tbody>
                 <tr>
                   <td>Download, Мбит/с</td>
-                  <td>{formatMetricNumber(periodSummary.download.avg, "Мбит/с")}</td>
-                  <td>{formatMetricNumber(periodSummary.download.min, "Мбит/с")}</td>
-                  <td>{formatMetricNumber(periodSummary.download.max, "Мбит/с")}</td>
-                  <td>{formatMetricNumber(periodSummary.download.p95, "Мбит/с")}</td>
+                  <td>
+                    {formatMetricNumber(periodSummary.download.avg, "Мбит/с")}
+                  </td>
+                  <td>
+                    {formatMetricNumber(periodSummary.download.min, "Мбит/с")}
+                  </td>
+                  <td>
+                    {formatMetricNumber(periodSummary.download.max, "Мбит/с")}
+                  </td>
+                  <td>
+                    {formatMetricNumber(periodSummary.download.p95, "Мбит/с")}
+                  </td>
                 </tr>
                 <tr>
                   <td>Latency, ms</td>
@@ -538,7 +568,9 @@ export function NetworkDashboard() {
                     </td>
                     <td>{formatTime(event.startedAt)}</td>
                     <td>
-                      {event.endedAt === null ? "идет сейчас" : formatTime(event.endedAt)}
+                      {event.endedAt === null
+                        ? "идет сейчас"
+                        : formatTime(event.endedAt)}
                     </td>
                     <td>{formatDuration(event.durationMs)}</td>
                   </tr>
@@ -562,8 +594,8 @@ export function NetworkDashboard() {
         UX мониторинга веб-приложений.
       </p>
       <p className={styles.disclaimer}>
-        Speed test: измеряется только download по локальным файлам с
-        cache-busting параметром.
+        Speed test: браузерная оценка HTTP throughput, а не "чистый" line rate.
+        При сжатии на CDN/сервере метрика может быть помечена как approximate.
       </p>
       {!hasData && (
         <p className={styles.loadingHint}>
