@@ -1,4 +1,5 @@
 export type ConnectionStatus = "online" | "degraded" | "offline";
+export type MonitoringRange = "5m" | "1h" | "24h" | "7d";
 
 export interface ConnectivitySample {
   timestamp: number;
@@ -40,6 +41,26 @@ export interface EndpointStats {
   lastUpdatedAt: number | null;
 }
 
+export interface DegradationEvent {
+  id: string;
+  status: Exclude<ConnectionStatus, "online">;
+  startedAt: number;
+  endedAt: number | null;
+}
+
+export interface PeriodMetricSummary {
+  avg: number | null;
+  min: number | null;
+  max: number | null;
+  p95: number | null;
+}
+
+export interface ReliabilitySummary {
+  uptimePercent: number | null;
+  disconnectCount: number;
+  longestOutageMs: number;
+}
+
 export interface ConnectionProbeResult {
   status: ConnectionStatus;
   latencyMs: number | null;
@@ -60,6 +81,7 @@ export interface NetworkMonitorState {
   speedHistory: SpeedSample[];
   endpointLatencyHistory: EndpointLatencyHistoryPoint[];
   endpointStats: EndpointStats[];
+  degradationEvents: DegradationEvent[];
   latestError: string | null;
   isPaused: boolean;
 }

@@ -1,7 +1,12 @@
 import type {
+  TimelineBandConfig,
   TimelineLineConfig,
   TimelineRightAxisConfig,
 } from "../charts/TimelineChart";
+import {
+  LATENCY_QUALITY_BANDS,
+  SPEED_QUALITY_BANDS,
+} from "../../model/constants";
 
 export const ENDPOINT_LINE_COLORS = [
   "#a78bfa",
@@ -48,12 +53,40 @@ export function createSpeedChartLines(): TimelineLineConfig[] {
   return [
     {
       key: "download",
-      label: "Скачивание",
+      label: "Скачивание (raw)",
       color: "#38bdf8",
       type: "linear",
       connectNulls: false,
       valueFormatter: (value) =>
         value === null ? "n/a" : `${value.toFixed(1)} Мбит/с`,
     },
+    {
+      key: "downloadSmooth",
+      label: "Скачивание (MA)",
+      color: "#e879f9",
+      type: "monotone",
+      connectNulls: true,
+      strokeDasharray: "6 4",
+      valueFormatter: (value) =>
+        value === null ? "n/a" : `${value.toFixed(1)} Мбит/с`,
+    },
   ];
 }
+
+export const speedChartBands: TimelineBandConfig[] = SPEED_QUALITY_BANDS.map(
+  (band) => ({
+    from: band.min,
+    to: band.max,
+    color: band.color,
+    label: band.label,
+  }),
+);
+
+export const latencyChartBands: TimelineBandConfig[] = LATENCY_QUALITY_BANDS.map(
+  (band) => ({
+    from: band.min,
+    to: band.max,
+    color: band.color,
+    label: band.label,
+  }),
+);

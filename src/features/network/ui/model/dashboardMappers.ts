@@ -4,6 +4,7 @@ import type {
   EndpointStats,
   SpeedSample,
 } from "../../model/types";
+import { computeMovingAverage, toRounded } from "../../model/utils";
 import { MAX_PLAUSIBLE_MBPS, NA_SUFFIX } from "./chartPresets";
 import { statusToLevel } from "./dashboardFormatters";
 
@@ -42,17 +43,24 @@ export function mapSpeedChartData(
     ];
   }
 
-  return speedHistory.map((item) => {
+  const normalized = speedHistory.map((item) => {
     const hasDownload =
       typeof item.downloadMbps === "number" &&
       item.downloadMbps > 0 &&
       item.downloadMbps < MAX_PLAUSIBLE_MBPS;
     return {
       ts: item.timestamp,
-      download: hasDownload ? item.downloadMbps : 0,
-      [`download${NA_SUFFIX}`]: !hasDownload,
+      value: hasDownload ? item.downloadMbps : null,
     };
   });
+
+  const withAverage = computeMovingAverage(normalized, 4);
+  return withAverage.map((item) => ({
+    ts: item.ts,
+    download: item.value ?? 0,
+    downloadSmooth: item.smooth,
+    [`download${NA_SUFFIX}`]: item.value === null,
+  }));
 }
 
 export function mapEndpointHistoryData(
@@ -66,6 +74,10 @@ export function mapEndpointHistoryData(
       fallbackPoint[item.endpointId] = 0;
       fallbackPoint[`${item.endpointId}${NA_SUFFIX}`] = true;
     }
+    fallbackPoint.avgLatency = 0;
+    fallbackPoint[`avgLatency${NA_SUFFIX}`] = true;
+    fallbackPoint.avgLatencySmooth = 0;
+    fallbackPoint[`avgLatencySmooth${NA_SUFFIX}`] = true;
     return [
       {
         ts: startedAt,
@@ -74,21 +86,54 @@ export function mapEndpointHistoryData(
     ];
   }
 
-  return points.map((point) => {
-    const row: Record<string, number | boolean> = {};
+  const rawRows: Array<ChartPoint & { avgLatency: number | null }> = points.map(
+    (point) => {
+    const row: Record<string, number | boolean | null> = {};
+    const endpointValues: number[] = [];
 
     for (const item of endpointStats) {
       const raw = point.values[item.endpointId];
       const hasValue = typeof raw === "number" && Number.isFinite(raw);
       row[item.endpointId] = hasValue ? raw : 0;
       row[`${item.endpointId}${NA_SUFFIX}`] = !hasValue;
+      if (hasValue) {
+        endpointValues.push(raw);
+      }
     }
 
-    return {
-      ts: point.timestamp,
-      ...row,
-    };
-  });
+    const avgLatency =
+      endpointValues.length > 0
+        ? toRounded(
+            endpointValues.reduce((sum, value) => sum + value, 0) /
+              endpointValues.length,
+            1,
+          )
+        : null;
+    row.avgLatency = avgLatency;
+    row[`avgLatency${NA_SUFFIX}`] = avgLatency === null;
+
+      return {
+        ts: point.timestamp,
+        ...row,
+        avgLatency,
+      };
+    },
+  );
+
+  const withSmoothing = computeMovingAverage(
+    rawRows.map((row) => ({
+      ts: Number(row.ts),
+      value: typeof row.avgLatency === "number" ? row.avgLatency : null,
+    })),
+    4,
+  );
+
+  return rawRows.map((row, index) => ({
+    ...row,
+    avgLatencySmooth: withSmoothing[index]?.smooth ?? null,
+    [`avgLatencySmooth${NA_SUFFIX}`]:
+      withSmoothing[index]?.smooth === null,
+  }));
 }
 
 export function buildEndpointSeries(

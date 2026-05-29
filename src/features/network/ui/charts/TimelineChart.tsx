@@ -3,6 +3,7 @@ import {
   Legend,
   Line,
   LineChart,
+  ReferenceArea,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -22,6 +23,14 @@ export interface TimelineLineConfig {
   yAxisId?: "left" | "right";
   type?: "monotone" | "stepAfter" | "linear";
   connectNulls?: boolean;
+  strokeDasharray?: string;
+}
+
+export interface TimelineBandConfig {
+  from: number;
+  to: number;
+  color: string;
+  label?: string;
 }
 
 export interface TimelineRightAxisConfig {
@@ -38,6 +47,7 @@ interface TimelineChartProps {
   yTicks?: number[];
   yTickFormatter?: (value: number) => string;
   rightAxis?: TimelineRightAxisConfig;
+  leftBands?: TimelineBandConfig[];
 }
 
 export function TimelineChart({
@@ -48,6 +58,7 @@ export function TimelineChart({
   yTicks,
   yTickFormatter,
   rightAxis,
+  leftBands,
 }: TimelineChartProps) {
   const safeData = data
     .filter((item) => Number.isFinite(item.ts))
@@ -88,6 +99,16 @@ export function TimelineChart({
             }
             domain={yDomain}
           />
+          {leftBands?.map((band) => (
+            <ReferenceArea
+              key={`${band.from}-${band.to}-${band.color}`}
+              yAxisId="left"
+              y1={band.from}
+              y2={band.to}
+              fill={band.color}
+              ifOverflow="extendDomain"
+            />
+          ))}
           {rightAxis && (
             <YAxis
               yAxisId="right"
@@ -152,6 +173,7 @@ export function TimelineChart({
               dot={false}
               name={line.label}
               connectNulls={line.connectNulls ?? true}
+              strokeDasharray={line.strokeDasharray}
               isAnimationActive={false}
               yAxisId={line.yAxisId ?? "left"}
             />

@@ -17,6 +17,7 @@ import {
   deriveConnectionStatusFromSignals,
   hydrateEndpointStats,
   qualityLabelFromScore,
+  reconcileDegradationEvents,
   summarizeEndpointStats,
 } from "../model/utils";
 import {
@@ -47,6 +48,7 @@ const initialState: NetworkMonitorState = {
   speedHistory: [],
   endpointLatencyHistory: [],
   endpointStats: initialEndpointStats,
+  degradationEvents: [],
   latestError: null,
   isPaused: false,
 };
@@ -90,6 +92,12 @@ function applyConnectionProbeResult(
   latencyMs: number | null,
   timestamp: number,
 ): NetworkMonitorState {
+  const nextDegradationEvents = reconcileDegradationEvents(
+    current.degradationEvents,
+    current.connectionStatus,
+    status,
+    timestamp,
+  );
   const quality = createQualityStatus(
     status,
     current.endpointStats,
@@ -109,6 +117,7 @@ function applyConnectionProbeResult(
       },
       HISTORY_LIMIT,
     ),
+    degradationEvents: nextDegradationEvents,
     ...quality,
   };
 }
@@ -177,6 +186,12 @@ function applyLatencyProbeResult(
     nextEndpointStats,
     current.speedHistory.at(-1)?.downloadMbps ?? null,
   );
+  const nextDegradationEvents = reconcileDegradationEvents(
+    current.degradationEvents,
+    current.connectionStatus,
+    nextConnectionStatus,
+    timestamp,
+  );
 
   return {
     ...current,
@@ -190,6 +205,7 @@ function applyLatencyProbeResult(
       HISTORY_LIMIT,
     ),
     connectionStatus: nextConnectionStatus,
+    degradationEvents: nextDegradationEvents,
     lastUpdatedAt: timestamp,
     ...quality,
   };

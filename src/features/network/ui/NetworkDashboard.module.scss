@@ -19,6 +19,54 @@
   color: #94a3b8;
 }
 
+.controls {
+  display: grid;
+  gap: 8px;
+  justify-items: end;
+}
+
+.rangeButtons,
+.exportButtons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.rangeButton,
+.actionButton {
+  border: 1px solid #334155;
+  background: #0f172a;
+  color: #cbd5e1;
+  border-radius: 8px;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+.rangeButton:hover,
+.actionButton:hover {
+  border-color: #38bdf8;
+  color: #e2e8f0;
+}
+
+.rangeButtonActive {
+  border-color: #22d3ee;
+  color: #22d3ee;
+}
+
+.toast {
+  position: sticky;
+  top: 12px;
+  z-index: 20;
+  width: fit-content;
+  margin-left: auto;
+  background: rgba(248, 113, 113, 0.15);
+  border: 1px solid rgba(248, 113, 113, 0.45);
+  color: #fecaca;
+  padding: 10px 12px;
+  border-radius: 8px;
+}
+
 .charts {
   display: grid;
   gap: 12px;
@@ -70,7 +118,33 @@
   color: #94a3b8;
 }
 
+.glossary {
+  border: 1px solid #334155;
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: rgba(15, 23, 42, 0.55);
+}
+
+.glossary summary {
+  cursor: pointer;
+  color: #cbd5e1;
+  font-weight: 600;
+}
+
+.glossary p {
+  margin: 8px 0 0;
+  color: #94a3b8;
+}
+
 @media (max-width: 1100px) {
+  .controls {
+    justify-items: start;
+  }
+
+  .rangeButtons,
+  .exportButtons {
+    justify-content: flex-start;
+  }
 }
 
 @media (max-width: 768px) {

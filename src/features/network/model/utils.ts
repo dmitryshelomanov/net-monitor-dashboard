@@ -1,10 +1,17 @@
 import type {
   ConnectionStatus,
+  ConnectivitySample,
+  DegradationEvent,
   EndpointConfig,
+  EndpointLatencyHistoryPoint,
   EndpointLatencySnapshot,
   EndpointStats,
   NetworkMonitorState,
+  PeriodMetricSummary,
+  ReliabilitySummary,
+  SpeedSample,
 } from "./types";
+import { RANGE_WINDOWS_MS } from "./constants";
 
 export function appendWithLimit<T>(
   items: T[] | undefined | null,
@@ -199,4 +206,192 @@ export function qualityLabelFromScore(
     return "warning";
   }
   return "poor";
+}
+
+export function summarizeNumericSeries(values: number[]): PeriodMetricSummary {
+  if (values.length === 0) {
+    return { avg: null, min: null, max: null, p95: null };
+  }
+
+  const sorted = [...values].sort((a, b) => a - b);
+  const avg = values.reduce((sum, value) => sum + value, 0) / values.length;
+  const min = sorted[0];
+  const max = sorted[sorted.length - 1];
+  const percentileIndex = Math.max(0, Math.ceil(sorted.length * 0.95) - 1);
+  const p95 = sorted[percentileIndex];
+
+  return {
+    avg: toRounded(avg, 1),
+    min: toRounded(min, 1),
+    max: toRounded(max, 1),
+    p95: toRounded(p95, 1),
+  };
+}
+
+export function filterByRange<T extends { timestamp: number }>(
+  items: T[],
+  range: keyof typeof RANGE_WINDOWS_MS,
+  now = Date.now(),
+): T[] {
+  const cutoff = now - RANGE_WINDOWS_MS[range];
+  return items.filter((item) => item.timestamp >= cutoff);
+}
+
+export function collectLatencySamples(
+  points: EndpointLatencyHistoryPoint[],
+): number[] {
+  return points.flatMap((point) =>
+    Object.values(point.values).filter(
+      (value): value is number => typeof value === "number" && Number.isFinite(value),
+    ),
+  );
+}
+
+export function summarizeRangeMetrics(
+  speedHistory: SpeedSample[],
+  endpointLatencyHistory: EndpointLatencyHistoryPoint[],
+): {
+  download: PeriodMetricSummary;
+  latency: PeriodMetricSummary;
+} {
+  const downloadValues = speedHistory
+    .map((item) => item.downloadMbps)
+    .filter((value): value is number => typeof value === "number" && value > 0);
+  const latencyValues = collectLatencySamples(endpointLatencyHistory);
+
+  return {
+    download: summarizeNumericSeries(downloadValues),
+    latency: summarizeNumericSeries(latencyValues),
+  };
+}
+
+export function reconcileDegradationEvents(
+  events: DegradationEvent[],
+  previousStatus: ConnectionStatus,
+  nextStatus: ConnectionStatus,
+  timestamp: number,
+): DegradationEvent[] {
+  const nextEvents = [...events];
+  const activeEvent = nextEvents.findLast((item) => item.endedAt === null) ?? null;
+  const prevBad = previousStatus !== "online";
+  const nextBad = nextStatus !== "online";
+
+  if (!nextBad) {
+    if (activeEvent) {
+      activeEvent.endedAt = timestamp;
+    }
+    return nextEvents;
+  }
+
+  const nextBadStatus = nextStatus as Exclude<ConnectionStatus, "online">;
+  if (!prevBad || !activeEvent) {
+    nextEvents.push({
+      id: `${nextBadStatus}-${timestamp}`,
+      status: nextBadStatus,
+      startedAt: timestamp,
+      endedAt: null,
+    });
+    return nextEvents;
+  }
+
+  if (activeEvent.status !== nextBadStatus) {
+    activeEvent.endedAt = timestamp;
+    nextEvents.push({
+      id: `${nextBadStatus}-${timestamp}`,
+      status: nextBadStatus,
+      startedAt: timestamp,
+      endedAt: null,
+    });
+  }
+
+  return nextEvents;
+}
+
+export function computeReliabilitySummary(
+  connectivityHistory: ConnectivitySample[],
+): ReliabilitySummary {
+  if (connectivityHistory.length < 2) {
+    return {
+      uptimePercent: null,
+      disconnectCount: 0,
+      longestOutageMs: 0,
+    };
+  }
+
+  const sorted = [...connectivityHistory].sort((a, b) => a.timestamp - b.timestamp);
+  const firstTs = sorted[0].timestamp;
+  const lastTs = sorted[sorted.length - 1].timestamp;
+  const totalSpan = Math.max(0, lastTs - firstTs);
+  if (totalSpan <= 0) {
+    return { uptimePercent: null, disconnectCount: 0, longestOutageMs: 0 };
+  }
+
+  let onlineDuration = 0;
+  let disconnectCount = 0;
+  let longestOutageMs = 0;
+  let currentOutageStartedAt: number | null = null;
+
+  for (let index = 0; index < sorted.length - 1; index += 1) {
+    const current = sorted[index];
+    const next = sorted[index + 1];
+    const segment = Math.max(0, next.timestamp - current.timestamp);
+    if (current.status === "online") {
+      onlineDuration += segment;
+    } else {
+      if (currentOutageStartedAt === null) {
+        currentOutageStartedAt = current.timestamp;
+        disconnectCount += 1;
+      }
+    }
+
+    if (current.status !== "online" && next.status === "online") {
+      const outageDuration = Math.max(0, next.timestamp - (currentOutageStartedAt ?? current.timestamp));
+      longestOutageMs = Math.max(longestOutageMs, outageDuration);
+      currentOutageStartedAt = null;
+    }
+  }
+
+  const last = sorted[sorted.length - 1];
+  if (last.status !== "online") {
+    const startedAt = currentOutageStartedAt ?? last.timestamp;
+    longestOutageMs = Math.max(longestOutageMs, Math.max(0, Date.now() - startedAt));
+  }
+
+  return {
+    uptimePercent: toRounded((onlineDuration / totalSpan) * 100, 1),
+    disconnectCount,
+    longestOutageMs,
+  };
+}
+
+export function computeMovingAverage(
+  points: Array<{ ts: number; value: number | null }>,
+  windowSize: number,
+): Array<{ ts: number; value: number | null; smooth: number | null }> {
+  const queue: number[] = [];
+  let sum = 0;
+
+  return points.map((point) => {
+    if (typeof point.value === "number" && Number.isFinite(point.value)) {
+      queue.push(point.value);
+      sum += point.value;
+      if (queue.length > windowSize) {
+        const removed = queue.shift();
+        if (typeof removed === "number") {
+          sum -= removed;
+        }
+      }
+      return {
+        ts: point.ts,
+        value: point.value,
+        smooth: toRounded(sum / queue.length, 2),
+      };
+    }
+
+    return {
+      ts: point.ts,
+      value: point.value,
+      smooth: null,
+    };
+  });
 }

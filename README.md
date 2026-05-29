@@ -1,73 +1,80 @@
-# React + TypeScript + Vite
+# Net Monitor Dashboard
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Веб-дашборд для мониторинга качества сети в реальном времени: стабильность соединения, скорость, задержка до внешних endpoint'ов и история деградаций.
 
-Currently, two official plugins are available:
+## Что умеет
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- Отслеживает состояние соединения (online/unstable/offline) по регулярным пробам.
+- Замеряет скорость загрузки и строит динамику в графиках.
+- Пингует набор endpoint'ов и показывает latency по каждому.
+- Показывает сводки по выбранному диапазону времени (`5m`, `1h`, `24h`, `7d`).
+- Фиксирует инциденты деградации и показывает их длительность.
+- Экспортирует данные мониторинга для дальнейшего анализа.
 
-## React Compiler
+## Технологии
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- React 19
+- TypeScript
+- Vite
+- HeroUI
+- Recharts
+- SCSS
 
-## Expanding the ESLint configuration
+## Быстрый старт
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+### 1) Установка зависимостей
 
-```js
-export default defineConfig([
-  globalIgnores(["dist"]),
-  {
-    files: ["**/*.{ts,tsx}"],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ["./tsconfig.node.json", "./tsconfig.app.json"],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-]);
+```bash
+npm install
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+### 2) Запуск в разработке
 
-```js
-// eslint.config.js
-import reactX from "eslint-plugin-react-x";
-import reactDom from "eslint-plugin-react-dom";
-
-export default defineConfig([
-  globalIgnores(["dist"]),
-  {
-    files: ["**/*.{ts,tsx}"],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs["recommended-typescript"],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ["./tsconfig.node.json", "./tsconfig.app.json"],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-]);
+```bash
+npm run dev
 ```
+
+Обычно приложение будет доступно по адресу `http://localhost:5173`.
+
+## Скрипты
+
+- `npm run dev` - запуск dev-сервера Vite
+- `npm run build` - production-сборка (`tsc -b && vite build`)
+- `npm run preview` - локальный preview собранной версии
+- `npm run lint` - проверка ESLint
+- `npm run format` - форматирование через Prettier
+- `npm run predeploy` - сборка с `base` под GitHub Pages
+- `npm run deploy` - деплой `dist` через `gh-pages`
+
+## Конфигурация мониторинга
+
+Основные параметры можно менять в `src/features/network/model/constants.ts`:
+
+- список URL для проверки connectivity;
+- список endpoint'ов для latency;
+- интервалы и таймауты проб;
+- окна мониторинга (`5m`, `1h`, `24h`, `7d`);
+- пороги алертов и quality bands.
+
+## Структура проекта (кратко)
+
+- `src/features/network/hooks` - логика мониторинга и состояние
+- `src/features/network/services` - сетевые пробы и замеры
+- `src/features/network/model` - типы, константы, утилиты агрегации
+- `src/features/network/ui` - экран дашборда и графики
+
+## Деплой
+
+Проект подготовлен для публикации на GitHub Pages:
+
+```bash
+npm run deploy
+```
+
+Перед этим убедитесь, что есть доступ на пуш в репозиторий и корректно настроена ветка/страница для Pages.
+
+---
+
+## Примечание
+
+Качество кода в рамках этой итерации не проверялось отдельно; проект навайбкожен.
