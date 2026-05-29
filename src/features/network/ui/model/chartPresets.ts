@@ -82,11 +82,10 @@ export const speedChartBands: TimelineBandConfig[] = SPEED_QUALITY_BANDS.map(
   }),
 );
 
-export const latencyChartBands: TimelineBandConfig[] = LATENCY_QUALITY_BANDS.map(
-  (band) => ({
+export const latencyChartBands: TimelineBandConfig[] =
+  LATENCY_QUALITY_BANDS.map((band) => ({
     from: band.min,
     to: band.max,
     color: band.color,
     label: band.label,
-  }),
-);
+  }));

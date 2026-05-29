@@ -38,39 +38,6 @@ function nowMs() {
   return performance.now();
 }
 
-function getEstimatedDownlinkMbps(): number | null {
-  type NavigatorConnection = {
-    downlink?: number;
-    effectiveType?: "slow-2g" | "2g" | "3g" | "4g";
-  };
-
-  const connection = (
-    navigator as Navigator & { connection?: NavigatorConnection }
-  ).connection;
-
-  if (
-    typeof connection?.downlink === "number" &&
-    Number.isFinite(connection.downlink)
-  ) {
-    return toRounded(connection.downlink, 2);
-  }
-
-  if (connection?.effectiveType) {
-    const byType: Record<
-      NonNullable<NavigatorConnection["effectiveType"]>,
-      number
-    > = {
-      "slow-2g": 0.05,
-      "2g": 0.3,
-      "3g": 1.5,
-      "4g": 10,
-    };
-    return toRounded(byType[connection.effectiveType], 2);
-  }
-
-  return null;
-}
-
 function withTimestamp(url: string): string {
   const separator = url.includes("?") ? "&" : "?";
   return `${url}${separator}t=${Date.now()}`;
@@ -147,10 +114,7 @@ type DownloadSample = {
   downloadMbps: number;
   durationMs: number;
   bytes: number;
-  source: Extract<
-    SpeedMeasurementSource,
-    "resource_timing" | "stream_fallback"
-  >;
+  source: Extract<SpeedMeasurementSource, "file_download">;
   isApproximate: boolean;
   usedCompressedTransfer: boolean | null;
 };
@@ -163,9 +127,6 @@ function calculateMbps(bytes: number, durationMs: number): number | null {
   ) {
     return null;
   }
-  if (durationMs < SPEED_TEST_CONFIG.minDurationForReliableSampleMs) {
-    return null;
-  }
   const seconds = durationMs / 1000;
   const mbps = (bytes * 8) / seconds / 1_000_000;
   if (mbps > SPEED_TEST_CONFIG.maxPlausibleMbps) {
@@ -174,66 +135,32 @@ function calculateMbps(bytes: number, durationMs: number): number | null {
   return toRounded(mbps, 2);
 }
 
-function extractTimingSample(
-  entry: PerformanceResourceTiming,
-): DownloadSample | null {
-  const transferBytes =
-    entry.transferSize > 0
-      ? entry.transferSize
-      : entry.encodedBodySize > 0
-        ? entry.encodedBodySize
-        : 0;
-
-  if (transferBytes < SPEED_TEST_CONFIG.minBytesForValidSample) {
+function getWireBytesFromHeaders(response: Response): number | null {
+  const contentLength = response.headers.get("content-length");
+  if (!contentLength) {
     return null;
   }
-
-  const durationMs = entry.duration;
-  const downloadMbps = calculateMbps(transferBytes, durationMs);
-  if (downloadMbps === null) {
+  const parsed = Number(contentLength);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
     return null;
   }
-
-  const hasCompressionSignal =
-    entry.decodedBodySize > 0 &&
-    entry.encodedBodySize > 0 &&
-    entry.decodedBodySize / entry.encodedBodySize >=
-      SPEED_TEST_CONFIG.compressionGapRatio;
-
-  return {
-    downloadMbps,
-    durationMs: toRounded(durationMs, 1) ?? durationMs,
-    bytes: transferBytes,
-    source: "resource_timing",
-    isApproximate: hasCompressionSignal || entry.transferSize === 0,
-    usedCompressedTransfer: hasCompressionSignal,
-  };
-}
-
-async function getTimingEntryByName(
-  resourceUrl: string,
-): Promise<PerformanceResourceTiming | null> {
-  for (let retry = 0; retry < 3; retry += 1) {
-    const entries = performance.getEntriesByName(resourceUrl, "resource");
-    const last = entries.at(-1);
-    if (last instanceof PerformanceResourceTiming) {
-      return last;
-    }
-    await new Promise((resolve) => window.setTimeout(resolve, 0));
-  }
-  return null;
+  return parsed;
 }
 
 async function measureStreamSample(
   response: Response,
   startedAt: number,
 ): Promise<DownloadSample | null> {
+  const wireBytesFromHeaders = getWireBytesFromHeaders(response);
+
   if (!response.body) {
     const blob = await response.blob();
     const durationMs = nowMs() - startedAt;
-    const downloadMbps = calculateMbps(blob.size, durationMs);
+    const decodedBytes = blob.size;
+    const measuredBytes = wireBytesFromHeaders ?? decodedBytes;
+    const downloadMbps = calculateMbps(measuredBytes, durationMs);
     if (
-      blob.size < SPEED_TEST_CONFIG.minBytesForValidSample ||
+      measuredBytes < SPEED_TEST_CONFIG.minBytesForValidSample ||
       downloadMbps === null
     ) {
       return null;
@@ -241,35 +168,31 @@ async function measureStreamSample(
     return {
       downloadMbps,
       durationMs: toRounded(durationMs, 1) ?? durationMs,
-      bytes: blob.size,
-      source: "stream_fallback",
-      isApproximate: false,
-      usedCompressedTransfer: null,
+      bytes: measuredBytes,
+      source: "file_download",
+      isApproximate: wireBytesFromHeaders === null,
+      usedCompressedTransfer:
+        wireBytesFromHeaders !== null
+          ? wireBytesFromHeaders < decodedBytes
+          : null,
     };
   }
 
   const reader = response.body.getReader();
-  let bytesReceived = 0;
+  let decodedBytesReceived = 0;
   while (true) {
     const { done, value } = await reader.read();
     if (done) {
       break;
     }
-    bytesReceived += value.byteLength;
-    const elapsedMs = nowMs() - startedAt;
-    if (
-      bytesReceived >= SPEED_TEST_CONFIG.minBytesForValidSample &&
-      elapsedMs >= SPEED_TEST_CONFIG.targetMinDurationMs
-    ) {
-      await reader.cancel();
-      break;
-    }
+    decodedBytesReceived += value.byteLength;
   }
 
   const durationMs = nowMs() - startedAt;
-  const downloadMbps = calculateMbps(bytesReceived, durationMs);
+  const measuredBytes = wireBytesFromHeaders ?? decodedBytesReceived;
+  const downloadMbps = calculateMbps(measuredBytes, durationMs);
   if (
-    bytesReceived < SPEED_TEST_CONFIG.minBytesForValidSample ||
+    measuredBytes < SPEED_TEST_CONFIG.minBytesForValidSample ||
     downloadMbps === null
   ) {
     return null;
@@ -278,10 +201,13 @@ async function measureStreamSample(
   return {
     downloadMbps,
     durationMs: toRounded(durationMs, 1) ?? durationMs,
-    bytes: bytesReceived,
-    source: "stream_fallback",
-    isApproximate: false,
-    usedCompressedTransfer: null,
+    bytes: measuredBytes,
+    source: "file_download",
+    isApproximate: wireBytesFromHeaders === null,
+    usedCompressedTransfer:
+      wireBytesFromHeaders !== null
+        ? wireBytesFromHeaders < decodedBytesReceived
+        : null,
   };
 }
 
@@ -300,22 +226,7 @@ async function measureSingleDownloadSample(
     if (!response.ok) {
       return null;
     }
-
-    const streamSample = await measureStreamSample(response, startedAt);
-    const timingEntry = await getTimingEntryByName(probeUrl);
-    if (timingEntry) {
-      const timingSample = extractTimingSample(timingEntry);
-      if (timingSample) {
-        if (
-          streamSample &&
-          timingSample.downloadMbps > streamSample.downloadMbps * 2
-        ) {
-          return streamSample;
-        }
-        return timingSample;
-      }
-    }
-    return streamSample;
+    return measureStreamSample(response, startedAt);
   } catch {
     return null;
   }
@@ -367,13 +278,10 @@ async function measureDownloadSample(): Promise<DownloadSample | null> {
 
 export async function probeSpeed(): Promise<SpeedProbeResult> {
   const sample = await measureDownloadSample();
-  const estimatedMbps = sample ? null : getEstimatedDownlinkMbps();
-  const downloadMbps = sample?.downloadMbps ?? estimatedMbps;
+  const downloadMbps = sample?.downloadMbps ?? null;
   const source: SpeedMeasurementSource = sample
     ? sample.source
-    : estimatedMbps !== null
-      ? "navigator_estimate"
-      : "unavailable";
+    : "unavailable";
 
   return {
     downloadMbps,
@@ -381,7 +289,7 @@ export async function probeSpeed(): Promise<SpeedProbeResult> {
     measurementSource: source,
     sampleDurationMs: sample?.durationMs ?? null,
     sampleBytes: sample?.bytes ?? null,
-    isApproximate: sample?.isApproximate ?? source !== "resource_timing",
+    isApproximate: sample?.isApproximate ?? false,
     usedCompressedTransfer: sample?.usedCompressedTransfer ?? null,
   };
 }

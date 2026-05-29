@@ -28,7 +28,8 @@ function buildHistogram(values: number[]): HistogramBin[] {
 
   for (const value of values) {
     const bucket =
-      bins.find((bin) => value >= bin.from && value < bin.to) ?? bins[bins.length - 1];
+      bins.find((bin) => value >= bin.from && value < bin.to) ??
+      bins[bins.length - 1];
     if (bucket) {
       bucket.count += 1;
     }

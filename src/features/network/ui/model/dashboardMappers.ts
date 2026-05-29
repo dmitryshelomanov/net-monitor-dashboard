@@ -88,29 +88,29 @@ export function mapEndpointHistoryData(
 
   const rawRows: Array<ChartPoint & { avgLatency: number | null }> = points.map(
     (point) => {
-    const row: Record<string, number | boolean | null> = {};
-    const endpointValues: number[] = [];
+      const row: Record<string, number | boolean | null> = {};
+      const endpointValues: number[] = [];
 
-    for (const item of endpointStats) {
-      const raw = point.values[item.endpointId];
-      const hasValue = typeof raw === "number" && Number.isFinite(raw);
-      row[item.endpointId] = hasValue ? raw : 0;
-      row[`${item.endpointId}${NA_SUFFIX}`] = !hasValue;
-      if (hasValue) {
-        endpointValues.push(raw);
+      for (const item of endpointStats) {
+        const raw = point.values[item.endpointId];
+        const hasValue = typeof raw === "number" && Number.isFinite(raw);
+        row[item.endpointId] = hasValue ? raw : 0;
+        row[`${item.endpointId}${NA_SUFFIX}`] = !hasValue;
+        if (hasValue) {
+          endpointValues.push(raw);
+        }
       }
-    }
 
-    const avgLatency =
-      endpointValues.length > 0
-        ? toRounded(
-            endpointValues.reduce((sum, value) => sum + value, 0) /
-              endpointValues.length,
-            1,
-          )
-        : null;
-    row.avgLatency = avgLatency;
-    row[`avgLatency${NA_SUFFIX}`] = avgLatency === null;
+      const avgLatency =
+        endpointValues.length > 0
+          ? toRounded(
+              endpointValues.reduce((sum, value) => sum + value, 0) /
+                endpointValues.length,
+              1,
+            )
+          : null;
+      row.avgLatency = avgLatency;
+      row[`avgLatency${NA_SUFFIX}`] = avgLatency === null;
 
       return {
         ts: point.timestamp,
@@ -131,8 +131,7 @@ export function mapEndpointHistoryData(
   return rawRows.map((row, index) => ({
     ...row,
     avgLatencySmooth: withSmoothing[index]?.smooth ?? null,
-    [`avgLatencySmooth${NA_SUFFIX}`]:
-      withSmoothing[index]?.smooth === null,
+    [`avgLatencySmooth${NA_SUFFIX}`]: withSmoothing[index]?.smooth === null,
   }));
 }
 

@@ -396,20 +396,6 @@ export function NetworkDashboard() {
                   <td>{formatMetricNumber(averageDownloadMbps, "Мбит/с")}</td>
                 </tr>
                 <tr>
-                  <td>Источник замера скорости</td>
-                  <td>
-                    {lastSpeedSample?.measurementSource === "resource_timing" &&
-                      "Resource Timing"}
-                    {lastSpeedSample?.measurementSource === "stream_fallback" &&
-                      "Stream fallback"}
-                    {lastSpeedSample?.measurementSource ===
-                      "navigator_estimate" && "Navigator estimate"}
-                    {lastSpeedSample?.measurementSource === "unavailable" &&
-                      "n/a"}
-                    {!lastSpeedSample?.measurementSource && "n/a"}
-                  </td>
-                </tr>
-                <tr>
                   <td>Последний сэмпл скорости</td>
                   <td>
                     {lastSpeedSample?.sampleBytes &&

@@ -242,7 +242,8 @@ export function collectLatencySamples(
 ): number[] {
   return points.flatMap((point) =>
     Object.values(point.values).filter(
-      (value): value is number => typeof value === "number" && Number.isFinite(value),
+      (value): value is number =>
+        typeof value === "number" && Number.isFinite(value),
     ),
   );
 }
@@ -272,7 +273,8 @@ export function reconcileDegradationEvents(
   timestamp: number,
 ): DegradationEvent[] {
   const nextEvents = [...events];
-  const activeEvent = nextEvents.findLast((item) => item.endedAt === null) ?? null;
+  const activeEvent =
+    nextEvents.findLast((item) => item.endedAt === null) ?? null;
   const prevBad = previousStatus !== "online";
   const nextBad = nextStatus !== "online";
 
@@ -318,7 +320,9 @@ export function computeReliabilitySummary(
     };
   }
 
-  const sorted = [...connectivityHistory].sort((a, b) => a.timestamp - b.timestamp);
+  const sorted = [...connectivityHistory].sort(
+    (a, b) => a.timestamp - b.timestamp,
+  );
   const firstTs = sorted[0].timestamp;
   const lastTs = sorted[sorted.length - 1].timestamp;
   const totalSpan = Math.max(0, lastTs - firstTs);
@@ -345,7 +349,10 @@ export function computeReliabilitySummary(
     }
 
     if (current.status !== "online" && next.status === "online") {
-      const outageDuration = Math.max(0, next.timestamp - (currentOutageStartedAt ?? current.timestamp));
+      const outageDuration = Math.max(
+        0,
+        next.timestamp - (currentOutageStartedAt ?? current.timestamp),
+      );
       longestOutageMs = Math.max(longestOutageMs, outageDuration);
       currentOutageStartedAt = null;
     }
@@ -354,7 +361,10 @@ export function computeReliabilitySummary(
   const last = sorted[sorted.length - 1];
   if (last.status !== "online") {
     const startedAt = currentOutageStartedAt ?? last.timestamp;
-    longestOutageMs = Math.max(longestOutageMs, Math.max(0, Date.now() - startedAt));
+    longestOutageMs = Math.max(
+      longestOutageMs,
+      Math.max(0, Date.now() - startedAt),
+    );
   }
 
   return {

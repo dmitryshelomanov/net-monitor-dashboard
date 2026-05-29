@@ -82,9 +82,7 @@ export interface SpeedProbeResult {
 }
 
 export type SpeedMeasurementSource =
-  | "resource_timing"
-  | "stream_fallback"
-  | "navigator_estimate"
+  | "file_download"
   | "unavailable";
 
 export interface NetworkMonitorState {
